@@ -32,3 +32,7 @@
 |---|---|
 | LED positive side | GPIO 26 through resistor |
 | LED negative side | GND |
+
+This LED represents the simulated AC state only. It is safe low-voltage status
+output for the dashboard demo, not real air-conditioner or mains-power
+control.

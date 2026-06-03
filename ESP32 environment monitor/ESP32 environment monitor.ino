@@ -9,6 +9,7 @@ const char* password = "Hello202101";
 
 unsigned long lastMotionTime = 0;
 const unsigned long motionHoldTime = 30000;
+bool acOn = false;
 
 #define DHTPIN 4
 #define DHTTYPE DHT22
@@ -44,11 +45,8 @@ bool updateOccupancy(int rawMotion) {
   return millis() - lastMotionTime < motionHoldTime;
 }
 
-bool updateAcState(bool occupied, float temperature) {
-  bool acOn = occupied && temperature > 28;
+void updateAcState() {
   digitalWrite(AC_LED_PIN, acOn ? HIGH : LOW);
-
-  return acOn;
 }
 
 String buildJsonResponse(const SensorReadings& readings, bool occupied, bool acOn) {
@@ -86,26 +84,56 @@ void handleRoot() {
   <meta charset="UTF-8">
   <title>ESP32 Environment Monitor</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
-      margin: 30px;
-      background: #f5f5f5;
+      margin: 0;
+      background: #f3f4f6;
+      color: #1f2937;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
     }
 
     h1 {
-      font-size: 36px;
+      font-size: 32px;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      margin-top: 0;
+      margin-bottom: 22px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
     }
 
     .card {
       background: white;
       padding: 18px;
-      margin: 12px 0;
-      border-radius: 12px;
-      font-size: 24px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     }
 
     .label {
+      font-weight: bold;
+      color: #4b5563;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 28px;
       font-weight: bold;
     }
 
@@ -113,46 +141,85 @@ void handleRoot() {
       font-size: 28px;
       font-weight: bold;
     }
+
+    .controls {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .ac-card {
+      margin-top: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      color: white;
+    }
+
+    .on-button {
+      background: #15803d;
+    }
+
+    .off-button {
+      background: #b91c1c;
+    }
+
   </style>
 </head>
 
 <body>
-  <h1>ESP32 Environment Monitor</h1>
+  <main>
+    <h1>ESP32 Environment Monitor</h1>
+    <p class="subtitle">Live room sensor dashboard with manual simulated AC control.</p>
 
-  <div class="card">
-    <span class="label">Temperature:</span>
-    <span id="temperature">--</span> &deg;C
-  </div>
+    <section class="grid">
+      <div class="card">
+        <span class="label">Temperature</span>
+        <span id="temperature" class="value">--</span> &deg;C
+      </div>
 
-  <div class="card">
-    <span class="label">Humidity:</span>
-    <span id="humidity">--</span> %
-  </div>
+      <div class="card">
+        <span class="label">Humidity</span>
+        <span id="humidity" class="value">--</span> %
+      </div>
 
-  <div class="card">
-    <span class="label">Light:</span>
-    <span id="light">--</span> lux
-  </div>
+      <div class="card">
+        <span class="label">Light</span>
+        <span id="light" class="value">--</span> lux
+      </div>
 
-  <div class="card">
-    <span class="label">Motion Sensor:</span>
-    <span id="rawMotion">--</span>
-  </div>
+      <div class="card">
+        <span class="label">Motion Sensor</span>
+        <span id="rawMotion" class="value">--</span>
+      </div>
 
-  <div class="card">
-    <span class="label">Room Status:</span>
-    <span id="occupied" class="status">--</span>
-  </div>
+      <div class="card">
+        <span class="label">Room Status</span>
+        <span id="occupied" class="status">--</span>
+      </div>
 
-  <div class="card">
-    <span class="label">AC Status:</span>
-    <span id="acStatus" class="status">--</span>
-  </div>
+      <div class="card">
+        <span class="label">Seconds Since Last Motion</span>
+        <span id="secondsSinceMotion" class="value">--</span> s
+      </div>
+    </section>
 
-  <div class="card">
-    <span class="label">Seconds Since Last Motion:</span>
-    <span id="secondsSinceMotion">--</span> s
-  </div>
+    <section class="card ac-card">
+      <span class="label">Simulated AC Status</span>
+      <span id="acStatus" class="status">--</span>
+      <div class="controls">
+        <button class="on-button" onclick="setAc(true)">Turn AC ON</button>
+        <button class="off-button" onclick="setAc(false)">Turn AC OFF</button>
+      </div>
+    </section>
+  </main>
 
   <script>
     async function updateData() {
@@ -173,6 +240,15 @@ void handleRoot() {
       }
     }
 
+    async function setAc(turnOn) {
+      try {
+        await fetch(turnOn ? '/ac/on' : '/ac/off');
+        updateData();
+      } catch (error) {
+        console.log('Failed to update AC state:', error);
+      }
+    }
+
     updateData();
     setInterval(updateData, 2000);
   </script>
@@ -186,10 +262,22 @@ void handleRoot() {
 void handleData() {
   SensorReadings readings = readSensors();
   bool occupied = updateOccupancy(readings.rawMotion);
-  bool acOn = updateAcState(occupied, readings.temperature);
+  updateAcState();
   String json = buildJsonResponse(readings, occupied, acOn);
 
   server.send(200, "application/json", json);
+}
+
+void handleAcOn() {
+  acOn = true;
+  updateAcState();
+  server.send(200, "text/plain", "AC ON");
+}
+
+void handleAcOff() {
+  acOn = false;
+  updateAcState();
+  server.send(200, "text/plain", "AC OFF");
 }
 
 void setup() {
@@ -220,6 +308,8 @@ void setup() {
 
   server.on("/", handleRoot);
   server.on("/data", handleData);
+  server.on("/ac/on", handleAcOn);
+  server.on("/ac/off", handleAcOff);
   server.begin();
 
   Serial.println("Web server started.");
