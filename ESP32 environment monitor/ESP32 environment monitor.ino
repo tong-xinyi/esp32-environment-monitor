@@ -9,7 +9,6 @@ const char* password = "Hello202101";
 
 unsigned long lastMotionTime = 0;
 const unsigned long motionHoldTime = 30000;
-String acMode = 'AUTO';
 
 #define DHTPIN 4
 #define DHTTYPE DHT22
@@ -19,6 +18,65 @@ String acMode = 'AUTO';
 DHT dht(DHTPIN, DHTTYPE);
 BH1750 lightMeter;
 WebServer server(80);
+
+struct SensorReadings {
+  float temperature;
+  float humidity;
+  float lux;
+  int rawMotion;
+};
+
+SensorReadings readSensors() {
+  SensorReadings readings;
+  readings.temperature = dht.readTemperature();
+  readings.humidity = dht.readHumidity();
+  readings.lux = lightMeter.readLightLevel();
+  readings.rawMotion = digitalRead(PIR_PIN);
+
+  return readings;
+}
+
+bool updateOccupancy(int rawMotion) {
+  if (rawMotion == HIGH) {
+    lastMotionTime = millis();
+  }
+
+  return millis() - lastMotionTime < motionHoldTime;
+}
+
+bool updateAcState(bool occupied, float temperature) {
+  bool acOn = occupied && temperature > 28;
+  digitalWrite(AC_LED_PIN, acOn ? HIGH : LOW);
+
+  return acOn;
+}
+
+String buildJsonResponse(const SensorReadings& readings, bool occupied, bool acOn) {
+  String json = "{";
+  json += "\"temperature\":";
+  json += readings.temperature;
+  json += ",";
+  json += "\"humidity\":";
+  json += readings.humidity;
+  json += ",";
+  json += "\"light\":";
+  json += readings.lux;
+  json += ",";
+  json += "\"rawMotion\":";
+  json += readings.rawMotion == HIGH ? "true" : "false";
+  json += ",";
+  json += "\"occupied\":";
+  json += occupied ? "true" : "false";
+  json += ",";
+  json += "\"secondsSinceMotion\":";
+  json += (millis() - lastMotionTime) / 1000;
+  json += ",";
+  json += "\"acOn\":";
+  json += acOn ? "true" : "false";
+  json += "}";
+
+  return json;
+}
 
 void handleRoot() {
   String html = R"rawliteral(
@@ -126,49 +184,10 @@ void handleRoot() {
 }
 
 void handleData() {
-  float temperature = dht.readTemperature();
-  float humidity = dht.readHumidity();
-  float lux = lightMeter.readLightLevel();
-
-  int rawMotion = digitalRead(PIR_PIN);
-
-  if (rawMotion == HIGH) {
-    lastMotionTime = millis();
-  }
-
-  bool occupied = (millis() - lastMotionTime < motionHoldTime);
-  bool acOn = false;
-
-  if (occupied && temperature > 28) {
-    acOn = true;
-  } else {
-    acOn = false;
-  }
-
-  digitalWrite(AC_LED_PIN, acOn ? HIGH : LOW);
-
-  String json = "{";
-  json += "\"temperature\":";
-  json += temperature;
-  json += ",";
-  json += "\"humidity\":";
-  json += humidity;
-  json += ",";
-  json += "\"light\":";
-  json += lux;
-  json += ",";
-  json += "\"rawMotion\":";
-  json += rawMotion == HIGH ? "true" : "false";
-  json += ",";
-  json += "\"occupied\":";
-  json += occupied ? "true" : "false";
-  json += ",";
-  json += "\"secondsSinceMotion\":";
-  json += (millis() - lastMotionTime) / 1000;
-  json += ",";
-  json += "\"acOn\":";
-  json += acOn ? "true" : "false";
-  json += "}";
+  SensorReadings readings = readSensors();
+  bool occupied = updateOccupancy(readings.rawMotion);
+  bool acOn = updateAcState(occupied, readings.temperature);
+  String json = buildJsonResponse(readings, occupied, acOn);
 
   server.send(200, "application/json", json);
 }
