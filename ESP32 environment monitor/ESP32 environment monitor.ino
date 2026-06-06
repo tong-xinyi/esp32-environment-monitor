@@ -4,8 +4,8 @@
 #include <BH1750.h>
 #include "DHT.h"
 
-const char* ssid = "31-2";
-const char* password = "Hello202101";
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
 
 unsigned long lastMotionTime = 0;
 const unsigned long motionHoldTime = 30000;
