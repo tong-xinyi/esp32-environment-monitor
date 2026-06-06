@@ -77,10 +77,7 @@ server. No complex additional dependencies are required.
 The WiFi network name and password are defined near the top of the Arduino
 sketch:
 
-```cpp
-const char* ssid = "31-2";
-const char* password = "Hello202101";
-```
+
 
 Update these values only when you need the ESP32 to connect to a different
 network. The rest of the WiFi connection logic should stay simple and
