@@ -92,7 +92,7 @@ compatible with Arduino IDE.
 2. Install the `DHT sensor library` and `BH1750` libraries from the Arduino
    Library Manager.
 3. Wire the sensors and LED using the pin assignments above.
-4. Open `ESP32 environment monitor/ESP32 environment monitor.ino`.
+4. Open `ESP32_environment_monitor/ESP32_environment_monitor.ino`.
 5. Confirm the WiFi SSID and password in the sketch match your network.
 6. Select the correct ESP32 board and port.
 7. Upload the sketch.
