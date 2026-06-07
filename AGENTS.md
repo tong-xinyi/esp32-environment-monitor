@@ -12,8 +12,8 @@ The current project goals are:
 - Detect motion and occupancy using an AM312 PIR sensor.
 - Serve a local web dashboard from the ESP32.
 - Provide a `/data` endpoint that returns JSON for JavaScript polling.
-- Provide beginner-friendly manual simulated AC ON/OFF control from the
-  dashboard.
+- Provide beginner-friendly simulated AC control with an automatic 28 C rule
+  and manual dashboard override.
 - Later, grow the project toward a more complete IoT / full-stack style
   portfolio project.
 
@@ -40,8 +40,8 @@ relay wiring, or dangerous hardware instructions.
 - Do not change existing hardware pin assignments unless explicitly asked.
 - Keep the existing `/` and `/data` routes working.
 - Keep JSON field names stable unless explicitly asked to change them.
-- Manual AC control routes such as `/ac/on` and `/ac/off` are acceptable when
-  they stay simple and beginner-readable.
+- Manual AC control routes such as `/ac/on`, `/ac/off`, and `/ac/auto` are
+  acceptable when they stay simple and beginner-readable.
 - Prefer small, beginner-readable changes.
 - Explain changes clearly in `README.md` when project structure changes.
 - Avoid adding heavy dependencies.
@@ -52,25 +52,27 @@ relay wiring, or dangerous hardware instructions.
 - Favor clear Arduino functions over large blocks of logic in route handlers.
 - Keep sensor reading, occupancy logic, AC/status logic, and JSON building
   separated when practical.
-- For the first simulated AC version, store AC state in a simple boolean such
-  as `acOn` and expose it through `/data`.
+- Store AC state in simple variables such as `acOn` and `acManualOverride`,
+  and expose the current AC state through `/data`.
 - Use simple names and straightforward control flow so the code remains
   approachable for a beginner.
 - Add comments only where they clarify non-obvious behavior.
 
 ## Feature Direction
 
-Current simulated AC work should stay manual:
+Current simulated AC work should stay beginner-readable:
 
 - The dashboard should show the current AC state.
-- The dashboard may provide clear ON and OFF buttons.
+- The dashboard may provide clear ON, OFF, and Auto buttons.
 - The ESP32 should store the simulated AC state in memory.
 - The `/data` endpoint should include the AC state using the existing `acOn`
   field.
+- Automatic control should turn on the simulated AC when temperature reaches
+  28 C, unless manual override is active.
 
-Later work may add automatic control or recommendations based on temperature,
-occupancy, and light level. Keep that future logic separate from the first
-manual control version so the code remains easy to understand.
+Later work may improve automatic control or recommendations based on
+temperature, occupancy, and light level. Keep future logic separated so the
+code remains easy to understand.
 
 ## Testing
 

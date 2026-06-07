@@ -5,9 +5,10 @@ temperature, humidity, light level, and motion, then hosts a small local web
 dashboard on the ESP32 so the values can be viewed from a browser.
 
 The project also includes a beginner-friendly simulated air-conditioner
-control feature. For now, the AC is represented by an LED and can be turned on
-or off manually from the dashboard. It does not control a real air-conditioner
-or any high-voltage hardware.
+control feature. The AC is represented by an LED: it turns on automatically
+when the temperature reaches 28 C, and the dashboard can manually turn it on
+or off. It does not control a real air-conditioner or any high-voltage
+hardware.
 
 ## Features
 
@@ -16,7 +17,7 @@ or any high-voltage hardware.
 - Light intensity monitoring using BH1750
 - Web dashboard hosted on ESP32
 - JavaScript live data update
-- Manual simulated AC ON/OFF control using an LED
+- Automatic simulated AC control at 28 C with manual ON/OFF override
 
 ## Project Architecture
 
@@ -25,7 +26,8 @@ The Arduino sketch is organized around a few small functions:
 - `readSensors()` reads the DHT22, BH1750, and PIR sensor inputs.
 - `updateOccupancy()` updates the room occupancy state using the PIR sensor
   and a short hold time after the last motion event.
-- `updateAcState()` writes the current simulated AC state to the LED output.
+- `updateAcState()` applies the automatic 28 C AC rule unless manual override
+  is active, then writes the current simulated AC state to the LED output.
 - `buildJsonResponse()` builds the JSON payload returned by the `/data`
   endpoint for the web dashboard.
 
@@ -35,10 +37,11 @@ The ESP32 web server exposes two routes:
 - `/data` returns the latest sensor values and state as JSON.
 - `/ac/on` turns the simulated AC LED on.
 - `/ac/off` turns the simulated AC LED off.
+- `/ac/auto` returns the simulated AC to automatic temperature control.
 
 The dashboard fetches `/data` every two seconds and updates the page without a
-refresh. The AC buttons call `/ac/on` and `/ac/off`, then refresh the displayed
-state.
+refresh. The AC buttons call `/ac/on`, `/ac/off`, or `/ac/auto`, then refresh
+the displayed state.
 
 ## Hardware
 
@@ -77,6 +80,11 @@ server. No complex additional dependencies are required.
 The WiFi network name and password are defined near the top of the Arduino
 sketch:
 
+```cpp
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+```
+
 
 
 Update these values only when you need the ESP32 to connect to a different
@@ -104,6 +112,7 @@ compatible with Arduino IDE.
 | `/data` | Returns sensor, occupancy, and simulated AC state as JSON |
 | `/ac/on` | Turns the simulated AC LED on |
 | `/ac/off` | Turns the simulated AC LED off |
+| `/ac/auto` | Returns the simulated AC to automatic 28 C control |
 
 ## JSON Data
 
@@ -122,6 +131,9 @@ The `/data` endpoint returns a JSON object with these fields:
 ## Current Limitations
 
 - The AC feature is only simulated with an LED.
+- Automatic AC control currently uses a simple 28 C threshold.
+- Manual ON/OFF overrides the automatic rule until `/ac/auto` is used or the
+  ESP32 restarts.
 - The project does not control real AC mains power, relays, or high-voltage
   devices.
 - The PIR sensor detects motion, not continuous human presence. Occupancy uses
@@ -134,8 +146,8 @@ The `/data` endpoint returns a JSON object with these fields:
 
 - Improve occupancy detection so the room does not immediately appear empty
   when a person stays still.
-- Add automatic simulated AC recommendations or control, such as:
-  - turn or recommend AC on when temperature is high and occupancy is true
+- Improve automatic simulated AC recommendations or control, such as:
+  - include occupancy in the AC decision
   - turn or recommend AC off when the room is empty for a while
 - Add clearer visual status indicators, possibly traffic-light style LEDs.
 - Consider logging readings to a server or database in a later full-stack
@@ -145,5 +157,6 @@ The `/data` endpoint returns a JSON object with these fields:
 
 ## Current Behavior
 
-The project can read sensor data, display it on a web dashboard, and manually
-control a simulated AC LED from the dashboard.
+The project can read sensor data, display it on a web dashboard, automatically
+turn on the simulated AC LED at 28 C, and still allow manual dashboard
+override.
