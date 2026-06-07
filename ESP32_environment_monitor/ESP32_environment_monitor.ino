@@ -9,7 +9,9 @@ const char* password = "YOUR_WIFI_PASSWORD";
 
 unsigned long lastMotionTime = 0;
 const unsigned long motionHoldTime = 30000;
+const float acTemperatureThreshold = 28.0;
 bool acOn = false;
+bool acManualOverride = false;
 
 #define DHTPIN 4
 #define DHTTYPE DHT22
@@ -45,8 +47,16 @@ bool updateOccupancy(int rawMotion) {
   return millis() - lastMotionTime < motionHoldTime;
 }
 
-void updateAcState() {
+void writeAcOutput() {
   digitalWrite(AC_LED_PIN, acOn ? HIGH : LOW);
+}
+
+void updateAcState(float temperature) {
+  if (!acManualOverride) {
+    acOn = temperature >= acTemperatureThreshold;
+  }
+
+  writeAcOutput();
 }
 
 String buildJsonResponse(const SensorReadings& readings, bool occupied, bool acOn) {
@@ -171,6 +181,10 @@ void handleRoot() {
       background: #b91c1c;
     }
 
+    .auto-button {
+      background: #2563eb;
+    }
+
   </style>
 </head>
 
@@ -217,6 +231,7 @@ void handleRoot() {
       <div class="controls">
         <button class="on-button" onclick="setAc(true)">Turn AC ON</button>
         <button class="off-button" onclick="setAc(false)">Turn AC OFF</button>
+        <button class="auto-button" onclick="setAcAuto()">Return to Auto</button>
       </div>
     </section>
   </main>
@@ -249,6 +264,15 @@ void handleRoot() {
       }
     }
 
+    async function setAcAuto() {
+      try {
+        await fetch('/ac/auto');
+        updateData();
+      } catch (error) {
+        console.log('Failed to return AC to auto mode:', error);
+      }
+    }
+
     updateData();
     setInterval(updateData, 2000);
   </script>
@@ -262,22 +286,31 @@ void handleRoot() {
 void handleData() {
   SensorReadings readings = readSensors();
   bool occupied = updateOccupancy(readings.rawMotion);
-  updateAcState();
+  updateAcState(readings.temperature);
   String json = buildJsonResponse(readings, occupied, acOn);
 
   server.send(200, "application/json", json);
 }
 
 void handleAcOn() {
+  acManualOverride = true;
   acOn = true;
-  updateAcState();
+  writeAcOutput();
   server.send(200, "text/plain", "AC ON");
 }
 
 void handleAcOff() {
+  acManualOverride = true;
   acOn = false;
-  updateAcState();
+  writeAcOutput();
   server.send(200, "text/plain", "AC OFF");
+}
+
+void handleAcAuto() {
+  SensorReadings readings = readSensors();
+  acManualOverride = false;
+  updateAcState(readings.temperature);
+  server.send(200, "text/plain", "AC AUTO");
 }
 
 void setup() {
@@ -310,6 +343,7 @@ void setup() {
   server.on("/data", handleData);
   server.on("/ac/on", handleAcOn);
   server.on("/ac/off", handleAcOff);
+  server.on("/ac/auto", handleAcAuto);
   server.begin();
 
   Serial.println("Web server started.");
