@@ -14,6 +14,8 @@ The current project goals are:
 - Provide a `/data` endpoint that returns JSON for JavaScript polling.
 - Provide beginner-friendly simulated AC control with an automatic 28 C rule
   and manual dashboard override.
+- Provide a small backend path toward full-stack development, including a
+  Node.js API and SQLite history storage.
 - Later, grow the project toward a more complete IoT / full-stack style
   portfolio project.
 
@@ -46,6 +48,8 @@ relay wiring, or dangerous hardware instructions.
 - Explain changes clearly in `README.md` when project structure changes.
 - Avoid adding heavy dependencies.
 - Keep the project compatible with Arduino IDE.
+- Keep backend additions small and beginner-readable. The backend may use
+  Express and SQLite, but avoid large frameworks until the project needs them.
 
 ## Code Style
 
@@ -73,6 +77,17 @@ Current simulated AC work should stay beginner-readable:
 Later work may improve automatic control or recommendations based on
 temperature, occupancy, and light level. Keep future logic separated so the
 code remains easy to understand.
+
+## Backend Direction
+
+The `backend/` folder is for the full-stack roadmap:
+
+- Accept readings from the ESP32 or manual test clients.
+- Save readings to a local SQLite database.
+- Expose simple JSON routes for latest and historical readings.
+- Keep local database files out of Git.
+- Do not assume the ESP32 firmware is already posting to the backend unless
+  that feature has been explicitly added.
 
 ## Testing
 
