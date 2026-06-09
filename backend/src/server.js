@@ -1,4 +1,4 @@
-const express = require("express");
+const http = require("http");
 const {
   dbPath,
   insertReading,
@@ -6,10 +6,7 @@ const {
   getLatestReading
 } = require("./database");
 
-const app = express();
 const port = Number(process.env.PORT || 3000);
-
-app.use(express.json({ limit: "16kb" }));
 
 function toNumber(value) {
   const numberValue = Number(value);
@@ -64,45 +61,171 @@ function parseReading(body) {
   };
 }
 
-app.get("/health", (req, res) => {
-  res.json({
-    ok: true,
-    database: dbPath
+function sendJson(res, statusCode, data) {
+  const body = JSON.stringify(data, null, 2);
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(body)
   });
-});
+  res.end(body);
+}
 
-app.post("/api/readings", (req, res) => {
-  const reading = parseReading(req.body || {});
+function sendHtml(res, statusCode, html) {
+  res.writeHead(statusCode, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Content-Length": Buffer.byteLength(html)
+  });
+  res.end(html);
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+
+    req.on("data", (chunk) => {
+      body += chunk;
+
+      if (body.length > 16 * 1024) {
+        reject(new Error("Request body too large"));
+        req.destroy();
+      }
+    });
+
+    req.on("end", () => {
+      if (!body) {
+        resolve({});
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(body));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+function renderHomePage() {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 Environment Backend</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      color: #1f2937;
+      background: #f3f4f6;
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      background: white;
+      padding: 24px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    code {
+      background: #eef2ff;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    li {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ESP32 Environment Backend</h1>
+    <p>This backend is running and ready to store ESP32 readings in SQLite.</p>
+    <ul>
+      <li><code>GET /health</code> checks server status.</li>
+      <li><code>POST /api/readings</code> saves one reading.</li>
+      <li><code>GET /api/latest</code> returns the latest saved reading.</li>
+      <li><code>GET /api/readings?limit=50</code> returns recent readings.</li>
+    </ul>
+  </main>
+</body>
+</html>`;
+}
+
+async function handlePostReading(req, res) {
+  let body;
+
+  try {
+    body = await readJsonBody(req);
+  } catch (error) {
+    sendJson(res, 400, {
+      error: "Invalid JSON body"
+    });
+    return;
+  }
+
+  const reading = parseReading(body);
 
   if (!reading) {
-    res.status(400).json({
+    sendJson(res, 400, {
       error: "Invalid reading payload"
     });
     return;
   }
 
-  res.status(201).json(insertReading(reading));
-});
+  sendJson(res, 201, insertReading(reading));
+}
 
-app.get("/api/readings", (req, res) => {
-  const requestedLimit = Number(req.query.limit || 50);
-  const limit = Math.min(Math.max(Math.round(requestedLimit) || 50, 1), 200);
-  res.json(listReadings(limit));
-});
+function handleRequest(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
 
-app.get("/api/latest", (req, res) => {
-  const reading = getLatestReading();
+  if (req.method === "GET" && url.pathname === "/") {
+    sendHtml(res, 200, renderHomePage());
+    return;
+  }
 
-  if (!reading) {
-    res.status(404).json({
-      error: "No readings saved yet"
+  if (req.method === "GET" && url.pathname === "/health") {
+    sendJson(res, 200, {
+      ok: true,
+      database: dbPath
     });
     return;
   }
 
-  res.json(reading);
-});
+  if (req.method === "POST" && url.pathname === "/api/readings") {
+    handlePostReading(req, res);
+    return;
+  }
 
-app.listen(port, () => {
+  if (req.method === "GET" && url.pathname === "/api/readings") {
+    const requestedLimit = Number(url.searchParams.get("limit") || 50);
+    const limit = Math.min(Math.max(Math.round(requestedLimit) || 50, 1), 200);
+    sendJson(res, 200, listReadings(limit));
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/latest") {
+    const reading = getLatestReading();
+
+    if (!reading) {
+      sendJson(res, 404, {
+        error: "No readings saved yet"
+      });
+      return;
+    }
+
+    sendJson(res, 200, reading);
+    return;
+  }
+
+  sendJson(res, 404, {
+    error: "Route not found"
+  });
+}
+
+http.createServer(handleRequest).listen(port, () => {
   console.log(`ESP32 environment backend listening on http://localhost:${port}`);
 });

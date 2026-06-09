@@ -8,13 +8,16 @@ toward a full-stack version of the project.
 
 ## Setup
 
-Install dependencies:
+This backend uses Node.js built-in HTTP and SQLite support. With Node.js 24 or
+newer, no npm dependencies are required.
+
+Start the API directly:
 
 ```bash
-npm install
+node src/server.js
 ```
 
-Start the API:
+If your computer has npm available, this also works:
 
 ```bash
 npm start
