@@ -1,0 +1,10 @@
+{
+  "name": "esp32-environment-monitor-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Small Node.js API for storing ESP32 environment readings in SQLite.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  }
+}

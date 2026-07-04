@@ -43,6 +43,10 @@ The dashboard fetches `/data` every two seconds and updates the page without a
 refresh. The AC buttons call `/ac/on`, `/ac/off`, or `/ac/auto`, then refresh
 the displayed state.
 
+The repository also includes a small `backend/` folder for the next
+full-stack step. It provides a Node.js API that can save environment readings
+to SQLite. The ESP32 does not post data to that backend yet.
+
 ## Hardware
 
 - ESP32 development board
@@ -71,6 +75,9 @@ More detailed wiring notes are available in [docs/wiring.md](docs/wiring.md).
 - Libraries:
   - `DHT sensor library`
   - `BH1750`
+- Optional backend tools:
+  - Node.js
+  - npm
 
 The sketch uses standard ESP32 Arduino libraries for WiFi, I2C, and the web
 server. No complex additional dependencies are required.
@@ -128,12 +135,38 @@ The `/data` endpoint returns a JSON object with these fields:
 | `secondsSinceMotion` | Seconds since the last detected motion |
 | `acOn` | Simulated AC LED state |
 
+## Backend History API
+
+The `backend/` folder contains a small Node.js API for saving readings to
+SQLite.
+
+Backend routes:
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/health` | Check that the backend is running |
+| `POST` | `/api/readings` | Save one environment reading |
+| `GET` | `/api/latest` | Return the latest saved reading |
+| `GET` | `/api/readings?limit=50` | Return recent saved readings |
+
+Run it from the backend folder:
+
+```bash
+cd backend
+node src/server.js
+```
+
+The SQLite database is created locally at `backend/data/environment.db`. This
+local data folder is ignored by Git.
+
 ## Current Limitations
 
 - The AC feature is only simulated with an LED.
 - Automatic AC control currently uses a simple 28 C threshold.
 - Manual ON/OFF overrides the automatic rule until `/ac/auto` is used or the
   ESP32 restarts.
+- The backend can store readings, but the ESP32 firmware does not post to it
+  yet.
 - The project does not control real AC mains power, relays, or high-voltage
   devices.
 - The PIR sensor detects motion, not continuous human presence. Occupancy uses
@@ -149,6 +182,7 @@ The `/data` endpoint returns a JSON object with these fields:
 - Improve automatic simulated AC recommendations or control, such as:
   - include occupancy in the AC decision
   - turn or recommend AC off when the room is empty for a while
+- Add ESP32-to-backend posting so readings are saved automatically.
 - Add clearer visual status indicators, possibly traffic-light style LEDs.
 - Consider logging readings to a server or database in a later full-stack
   version.
