@@ -90,13 +90,17 @@ sketch:
 ```cpp
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
+const char* backendReadingsUrl = "http://YOUR_COMPUTER_IP:3000/api/readings";
+const bool backendPostingEnabled = false;
 ```
-
-
 
 Update these values only when you need the ESP32 to connect to a different
 network. The rest of the WiFi connection logic should stay simple and
 compatible with Arduino IDE.
+
+To test backend posting, keep the ESP32 and computer on the same WiFi network,
+replace `YOUR_COMPUTER_IP` with your computer's local IP address, and set
+`backendPostingEnabled` to `true`. Keep real WiFi passwords out of Git commits.
 
 ## Arduino IDE Upload Steps
 
@@ -159,14 +163,37 @@ node src/server.js
 The SQLite database is created locally at `backend/data/environment.db`. This
 local data folder is ignored by Git.
 
+## ESP32 Backend Posting
+
+The firmware can periodically send readings to the backend:
+
+```cpp
+const char* backendReadingsUrl = "http://YOUR_COMPUTER_IP:3000/api/readings";
+const bool backendPostingEnabled = false;
+```
+
+When enabled, the ESP32 posts the same JSON fields used by `/data` to
+`POST /api/readings` about every 10 seconds. The feature is disabled by
+default so the sketch still works without a backend running.
+
+To enable it for local testing:
+
+1. Start the backend on your computer.
+2. Find your computer's local WiFi IP address.
+3. Update `backendReadingsUrl` in the sketch.
+4. Set `backendPostingEnabled` to `true`.
+5. Upload the sketch from Arduino IDE.
+6. Open `http://localhost:3000/api/latest` on your computer to confirm data is
+   being saved.
+
 ## Current Limitations
 
 - The AC feature is only simulated with an LED.
 - Automatic AC control currently uses a simple 28 C threshold.
 - Manual ON/OFF overrides the automatic rule until `/ac/auto` is used or the
   ESP32 restarts.
-- The backend can store readings, but the ESP32 firmware does not post to it
-  yet.
+- Backend posting is disabled by default and must be configured with your
+  computer's local IP address before testing.
 - The project does not control real AC mains power, relays, or high-voltage
   devices.
 - The PIR sensor detects motion, not continuous human presence. Occupancy uses
@@ -182,7 +209,7 @@ local data folder is ignored by Git.
 - Improve automatic simulated AC recommendations or control, such as:
   - include occupancy in the AC decision
   - turn or recommend AC off when the room is empty for a while
-- Add ESP32-to-backend posting so readings are saved automatically.
+- Show backend history in a separate dashboard with charts.
 - Add clearer visual status indicators, possibly traffic-light style LEDs.
 - Consider logging readings to a server or database in a later full-stack
   version.

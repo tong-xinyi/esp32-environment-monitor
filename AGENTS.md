@@ -86,8 +86,9 @@ The `backend/` folder is for the full-stack roadmap:
 - Save readings to a local SQLite database.
 - Expose simple JSON routes for latest and historical readings.
 - Keep local database files out of Git.
-- Do not assume the ESP32 firmware is already posting to the backend unless
-  that feature has been explicitly added.
+- ESP32 backend posting should stay optional and beginner-readable. Keep it
+  disabled by default with a boolean such as `backendPostingEnabled`, and use
+  placeholders for local IP addresses in committed code.
 
 ## Testing
 
