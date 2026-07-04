@@ -1,14 +1,19 @@
 #include <WiFi.h>
 #include <WebServer.h>
+#include <HTTPClient.h>
 #include <Wire.h>
 #include <BH1750.h>
 #include "DHT.h"
 
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
+const char* backendReadingsUrl = "http://YOUR_COMPUTER_IP:3000/api/readings";
+const bool backendPostingEnabled = false;
 
 unsigned long lastMotionTime = 0;
 const unsigned long motionHoldTime = 30000;
+unsigned long lastBackendPostTime = 0;
+const unsigned long backendPostInterval = 10000;
 const float acTemperatureThreshold = 28.0;
 bool acOn = false;
 bool acManualOverride = false;
@@ -84,6 +89,40 @@ String buildJsonResponse(const SensorReadings& readings, bool occupied, bool acO
   json += "}";
 
   return json;
+}
+
+void sendReadingToBackend(const String& json) {
+  if (!backendPostingEnabled || WiFi.status() != WL_CONNECTED) {
+    return;
+  }
+
+  HTTPClient http;
+  http.begin(backendReadingsUrl);
+  http.addHeader("Content-Type", "application/json");
+
+  int responseCode = http.POST(json);
+  Serial.print("Backend POST response: ");
+  Serial.println(responseCode);
+
+  http.end();
+}
+
+void postReadingToBackend() {
+  SensorReadings readings = readSensors();
+  bool occupied = updateOccupancy(readings.rawMotion);
+  updateAcState(readings.temperature);
+  String json = buildJsonResponse(readings, occupied, acOn);
+
+  sendReadingToBackend(json);
+}
+
+void updateBackendPosting() {
+  if (millis() - lastBackendPostTime < backendPostInterval) {
+    return;
+  }
+
+  lastBackendPostTime = millis();
+  postReadingToBackend();
 }
 
 void handleRoot() {
@@ -351,4 +390,5 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  updateBackendPosting();
 }
