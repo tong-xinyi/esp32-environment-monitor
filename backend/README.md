@@ -3,8 +3,8 @@
 This is a small Node.js backend for saving ESP32 environment readings to a
 SQLite database.
 
-The ESP32 does not post to this backend yet. This backend is the next step
-toward a full-stack version of the project.
+The ESP32 can optionally post readings to this backend every 10 seconds. The
+feature is disabled by default in the Arduino sketch.
 
 ## Setup
 
@@ -29,6 +29,9 @@ The server runs on:
 http://localhost:3000
 ```
 
+Open that address to view the latest reading and recent SQLite history. The
+dashboard checks for new readings every five seconds.
+
 SQLite data is saved locally in:
 
 ```text
@@ -41,6 +44,7 @@ The `data/` folder is ignored by Git so local sensor history is not committed.
 
 | Method | Route | Purpose |
 |---|---|---|
+| `GET` | `/` | Show the auto-refreshing history dashboard |
 | `GET` | `/health` | Check that the backend is running |
 | `POST` | `/api/readings` | Save one ESP32 reading |
 | `GET` | `/api/latest` | Return the latest saved reading |

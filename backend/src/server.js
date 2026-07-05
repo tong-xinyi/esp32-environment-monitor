@@ -113,21 +113,106 @@ function renderHomePage() {
   <meta charset="UTF-8">
   <title>ESP32 Environment Backend</title>
   <style>
+    * { box-sizing: border-box; }
+
     body {
       font-family: Arial, sans-serif;
-      margin: 40px;
+      margin: 0;
       color: #1f2937;
       background: #f3f4f6;
     }
 
     main {
-      max-width: 760px;
+      max-width: 1080px;
       margin: 0 auto;
-      background: white;
       padding: 24px;
+    }
+
+    header { margin-bottom: 20px; }
+    h1 { margin-bottom: 6px; }
+
+    .subtitle {
+      margin: 0;
+      color: #6b7280;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .card,
+    .panel {
+      background: white;
       border-radius: 10px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.08);
     }
+
+    .card { padding: 18px; }
+
+    .label {
+      display: block;
+      margin-bottom: 8px;
+      color: #6b7280;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .value {
+      font-size: 26px;
+      font-weight: bold;
+    }
+
+    .unit {
+      color: #6b7280;
+      font-size: 15px;
+      margin-left: 4px;
+    }
+
+    .panel { overflow: hidden; }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .updated-at {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      color: #4b5563;
+      background: #f9fafb;
+      font-size: 13px;
+    }
+
+    tr:last-child td { border-bottom: 0; }
 
     code {
       background: #eef2ff;
@@ -135,22 +220,152 @@ function renderHomePage() {
       border-radius: 4px;
     }
 
-    li {
-      margin: 8px 0;
+    .empty {
+      padding: 20px;
+      color: #6b7280;
+    }
+
+    .status-ok {
+      color: #15803d;
+      font-weight: bold;
+    }
+
+    .status-off {
+      color: #b91c1c;
+      font-weight: bold;
+    }
+
+    @media (max-width: 720px) {
+      table {
+        display: block;
+        overflow-x: auto;
+      }
     }
   </style>
 </head>
 <body>
   <main>
-    <h1>ESP32 Environment Backend</h1>
-    <p>This backend is running and ready to store ESP32 readings in SQLite.</p>
-    <ul>
-      <li><code>GET /health</code> checks server status.</li>
-      <li><code>POST /api/readings</code> saves one reading.</li>
-      <li><code>GET /api/latest</code> returns the latest saved reading.</li>
-      <li><code>GET /api/readings?limit=50</code> returns recent readings.</li>
-    </ul>
+    <header>
+      <h1>ESP32 Environment Backend</h1>
+      <p class="subtitle">SQLite history dashboard for readings posted by the ESP32.</p>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <span class="label">Temperature</span>
+        <span id="temperature" class="value">--</span><span class="unit">C</span>
+      </div>
+      <div class="card">
+        <span class="label">Humidity</span>
+        <span id="humidity" class="value">--</span><span class="unit">%</span>
+      </div>
+      <div class="card">
+        <span class="label">Light</span>
+        <span id="light" class="value">--</span><span class="unit">lux</span>
+      </div>
+      <div class="card">
+        <span class="label">Room</span>
+        <span id="occupied" class="value">--</span>
+      </div>
+      <div class="card">
+        <span class="label">Simulated AC</span>
+        <span id="acOn" class="value">--</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Recent Readings</h2>
+        <span id="updatedAt" class="updated-at">Waiting for data</span>
+      </div>
+      <div id="tableWrap" class="empty">
+        No readings saved yet. Start the ESP32 backend posting feature, or POST a test reading to <code>/api/readings</code>.
+      </div>
+    </section>
   </main>
+
+  <script>
+    function formatNumber(value, digits) {
+      return Number(value).toFixed(digits);
+    }
+
+    function formatDateTime(value) {
+      const utcValue = value.replace(" ", "T") + "Z";
+      return new Date(utcValue).toLocaleString();
+    }
+
+    function formatBoolean(value, trueText, falseText) {
+      return value ? trueText : falseText;
+    }
+
+    function renderLatest(reading) {
+      if (!reading) {
+        return;
+      }
+
+      document.getElementById("temperature").textContent = formatNumber(reading.temperature, 1);
+      document.getElementById("humidity").textContent = formatNumber(reading.humidity, 1);
+      document.getElementById("light").textContent = formatNumber(reading.light, 1);
+      document.getElementById("occupied").textContent = formatBoolean(reading.occupied, "Occupied", "Empty");
+      document.getElementById("acOn").textContent = formatBoolean(reading.acOn, "ON", "OFF");
+    }
+
+    function renderTable(readings) {
+      const tableWrap = document.getElementById("tableWrap");
+
+      if (!readings.length) {
+        tableWrap.className = "empty";
+        tableWrap.innerHTML = "No readings saved yet. Start the ESP32 backend posting feature, or POST a test reading to <code>/api/readings</code>.";
+        return;
+      }
+
+      let rows = "";
+      readings.forEach((reading) => {
+        rows += "<tr>";
+        rows += "<td>" + formatDateTime(reading.createdAt) + "</td>";
+        rows += "<td>" + formatNumber(reading.temperature, 1) + " C</td>";
+        rows += "<td>" + formatNumber(reading.humidity, 1) + "%</td>";
+        rows += "<td>" + formatNumber(reading.light, 1) + " lux</td>";
+        rows += "<td>" + formatBoolean(reading.rawMotion, "Motion", "None") + "</td>";
+        rows += "<td>" + formatBoolean(reading.occupied, "Occupied", "Empty") + "</td>";
+        rows += "<td class=\\"" + (reading.acOn ? "status-ok" : "status-off") + "\\">" + formatBoolean(reading.acOn, "ON", "OFF") + "</td>";
+        rows += "</tr>";
+      });
+
+      tableWrap.className = "";
+      tableWrap.innerHTML = "<table>" +
+        "<thead>" +
+          "<tr>" +
+            "<th>Time</th>" +
+            "<th>Temp</th>" +
+            "<th>Humidity</th>" +
+            "<th>Light</th>" +
+            "<th>Motion</th>" +
+            "<th>Room</th>" +
+            "<th>AC</th>" +
+          "</tr>" +
+        "</thead>" +
+        "<tbody>" + rows + "</tbody>" +
+      "</table>";
+    }
+
+    async function refreshDashboard() {
+      try {
+        const response = await fetch("/api/readings?limit=20");
+        const readings = await response.json();
+
+        renderLatest(readings[0]);
+        renderTable(readings);
+        document.getElementById("updatedAt").textContent = "Updated " + new Date().toLocaleTimeString();
+      } catch (error) {
+        document.getElementById("updatedAt").textContent = "Could not load readings";
+        console.log("Failed to load backend readings:", error);
+      }
+    }
+
+    refreshDashboard();
+    setInterval(refreshDashboard, 5000);
+  </script>
 </body>
 </html>`;
 }
