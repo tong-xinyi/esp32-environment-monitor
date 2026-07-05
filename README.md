@@ -6,8 +6,8 @@ dashboard on the ESP32 so the values can be viewed from a browser.
 
 The project also includes a beginner-friendly simulated air-conditioner
 control feature. The AC is represented by an LED: it turns on automatically
-when the temperature reaches 28 C, and the dashboard can manually turn it on
-or off. It does not control a real air-conditioner or any high-voltage
+when the room is occupied and the temperature reaches 28 C. The dashboard can
+also turn it on or off manually. It does not control real high-voltage
 hardware.
 
 ## Features
@@ -17,7 +17,7 @@ hardware.
 - Light intensity monitoring using BH1750
 - Web dashboard hosted on ESP32
 - JavaScript live data update
-- Automatic simulated AC control at 28 C with manual ON/OFF override
+- Occupancy-aware simulated AC control at 28 C with manual ON/OFF override
 
 ## Project Architecture
 
@@ -26,8 +26,9 @@ The Arduino sketch is organized around a few small functions:
 - `readSensors()` reads the DHT22, BH1750, and PIR sensor inputs.
 - `updateOccupancy()` updates the room occupancy state using the PIR sensor
   and a short hold time after the last motion event.
-- `updateAcState()` applies the automatic 28 C AC rule unless manual override
-  is active, then writes the current simulated AC state to the LED output.
+- `updateAcState()` turns the simulated AC on automatically only when the room
+  is occupied and the temperature reaches 28 C, unless manual override is
+  active, then writes the current simulated AC state to the LED output.
 - `buildJsonResponse()` builds the JSON payload returned by the `/data`
   endpoint for the web dashboard.
 
@@ -148,6 +149,7 @@ Backend routes:
 
 | Method | Route | Purpose |
 |---|---|---|
+| `GET` | `/` | Show the auto-refreshing backend history dashboard |
 | `GET` | `/health` | Check that the backend is running |
 | `POST` | `/api/readings` | Save one environment reading |
 | `GET` | `/api/latest` | Return the latest saved reading |
@@ -189,7 +191,8 @@ To enable it for local testing:
 ## Current Limitations
 
 - The AC feature is only simulated with an LED.
-- Automatic AC control currently uses a simple 28 C threshold.
+- Automatic AC control requires occupancy and a temperature of at least 28 C.
+  It turns off after the occupancy hold time expires.
 - Manual ON/OFF overrides the automatic rule until `/ac/auto` is used or the
   ESP32 restarts.
 - Backend posting is disabled by default and must be configured with your
@@ -206,9 +209,8 @@ To enable it for local testing:
 
 - Improve occupancy detection so the room does not immediately appear empty
   when a person stays still.
-- Improve automatic simulated AC recommendations or control, such as:
-  - include occupancy in the AC decision
-  - turn or recommend AC off when the room is empty for a while
+- Improve automatic simulated AC recommendations using light level or recent
+  temperature trends.
 - Show backend history in a separate dashboard with charts.
 - Add clearer visual status indicators, possibly traffic-light style LEDs.
 - Consider logging readings to a server or database in a later full-stack
@@ -218,6 +220,6 @@ To enable it for local testing:
 
 ## Current Behavior
 
-The project can read sensor data, display it on a web dashboard, automatically
-turn on the simulated AC LED at 28 C, and still allow manual dashboard
-override.
+The project can read sensor data, display it on a web dashboard, and turn on
+the simulated AC LED automatically when the room is occupied at 28 C or
+higher. Manual dashboard override remains available.

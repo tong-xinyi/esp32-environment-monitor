@@ -56,9 +56,9 @@ void writeAcOutput() {
   digitalWrite(AC_LED_PIN, acOn ? HIGH : LOW);
 }
 
-void updateAcState(float temperature) {
+void updateAcState(float temperature, bool occupied) {
   if (!acManualOverride) {
-    acOn = temperature >= acTemperatureThreshold;
+    acOn = occupied && temperature >= acTemperatureThreshold;
   }
 
   writeAcOutput();
@@ -110,7 +110,7 @@ void sendReadingToBackend(const String& json) {
 void postReadingToBackend() {
   SensorReadings readings = readSensors();
   bool occupied = updateOccupancy(readings.rawMotion);
-  updateAcState(readings.temperature);
+  updateAcState(readings.temperature, occupied);
   String json = buildJsonResponse(readings, occupied, acOn);
 
   sendReadingToBackend(json);
@@ -325,7 +325,7 @@ void handleRoot() {
 void handleData() {
   SensorReadings readings = readSensors();
   bool occupied = updateOccupancy(readings.rawMotion);
-  updateAcState(readings.temperature);
+  updateAcState(readings.temperature, occupied);
   String json = buildJsonResponse(readings, occupied, acOn);
 
   server.send(200, "application/json", json);
@@ -347,8 +347,9 @@ void handleAcOff() {
 
 void handleAcAuto() {
   SensorReadings readings = readSensors();
+  bool occupied = updateOccupancy(readings.rawMotion);
   acManualOverride = false;
-  updateAcState(readings.temperature);
+  updateAcState(readings.temperature, occupied);
   server.send(200, "text/plain", "AC AUTO");
 }
 

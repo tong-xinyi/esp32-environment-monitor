@@ -71,8 +71,8 @@ Current simulated AC work should stay beginner-readable:
 - The ESP32 should store the simulated AC state in memory.
 - The `/data` endpoint should include the AC state using the existing `acOn`
   field.
-- Automatic control should turn on the simulated AC when temperature reaches
-  28 C, unless manual override is active.
+- Automatic control should turn on the simulated AC only when the room is
+  occupied and temperature reaches 28 C, unless manual override is active.
 
 Later work may improve automatic control or recommendations based on
 temperature, occupancy, and light level. Keep future logic separated so the
