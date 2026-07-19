@@ -18,6 +18,8 @@ hardware.
 - Web dashboard hosted on ESP32
 - JavaScript live data update
 - Occupancy-aware simulated AC control at 28 C with manual ON/OFF override
+- Automatic low-voltage fan control output at 28 C
+- Backend dashboard with recent readings and temperature/humidity trend chart
 
 ## Project Architecture
 
@@ -29,6 +31,8 @@ The Arduino sketch is organized around a few small functions:
 - `updateAcState()` turns the simulated AC on automatically only when the room
   is occupied and the temperature reaches 28 C, unless manual override is
   active, then writes the current simulated AC state to the LED output.
+- `updateFanState()` turns the fan control output on automatically when the
+  temperature reaches 28 C.
 - `buildJsonResponse()` builds the JSON payload returned by the `/data`
   endpoint for the web dashboard.
 
@@ -46,7 +50,7 @@ the displayed state.
 
 The repository also includes a small `backend/` folder for the next
 full-stack step. It provides a Node.js API that can save environment readings
-to SQLite. The ESP32 does not post data to that backend yet.
+to SQLite and display recent readings with a simple trend chart.
 
 ## Hardware
 
@@ -55,6 +59,7 @@ to SQLite. The ESP32 does not post data to that backend yet.
 - AM312 PIR motion sensor
 - BH1750 light sensor
 - LED and resistor
+- Low-voltage fan with a suitable transistor, MOSFET driver, or motor driver
 - Breadboard and jumper wires
 
 ## Pin Assignments
@@ -66,6 +71,7 @@ to SQLite. The ESP32 does not post data to that backend yet.
 | BH1750 SDA | GPIO 21 |
 | BH1750 SCL | GPIO 22 |
 | Simulated AC LED | GPIO 26 |
+| Fan control signal | GPIO 27 |
 
 More detailed wiring notes are available in [docs/wiring.md](docs/wiring.md).
 
@@ -139,6 +145,7 @@ The `/data` endpoint returns a JSON object with these fields:
 | `occupied` | Occupancy state with motion hold time applied |
 | `secondsSinceMotion` | Seconds since the last detected motion |
 | `acOn` | Simulated AC LED state |
+| `fanOn` | Automatic low-voltage fan output state |
 
 ## Backend History API
 
@@ -162,7 +169,8 @@ cd backend
 node src/server.js
 ```
 
-The SQLite database is created locally at `backend/data/environment.db`. This
+The dashboard at `http://localhost:3000/` auto-refreshes and includes recent
+readings plus a temperature/humidity trend chart. The SQLite database is created locally at `backend/data/environment.db`. This
 local data folder is ignored by Git.
 
 ## ESP32 Backend Posting
@@ -191,6 +199,9 @@ To enable it for local testing:
 ## Current Limitations
 
 - The AC feature is only simulated with an LED.
+- The fan output is a GPIO control signal only. Do not power a fan directly
+  from an ESP32 pin; use a transistor, MOSFET driver, or motor driver module
+  that matches the fan.
 - Automatic AC control requires occupancy and a temperature of at least 28 C.
   It turns off after the occupancy hold time expires.
 - Manual ON/OFF overrides the automatic rule until `/ac/auto` is used or the
@@ -211,7 +222,7 @@ To enable it for local testing:
   when a person stays still.
 - Improve automatic simulated AC recommendations using light level or recent
   temperature trends.
-- Show backend history in a separate dashboard with charts.
+- Improve backend charts with longer history ranges and clearer axis labels.
 - Add clearer visual status indicators, possibly traffic-light style LEDs.
 - Consider logging readings to a server or database in a later full-stack
   version.
@@ -222,4 +233,5 @@ To enable it for local testing:
 
 The project can read sensor data, display it on a web dashboard, and turn on
 the simulated AC LED automatically when the room is occupied at 28 C or
-higher. Manual dashboard override remains available.
+higher. Manual dashboard override remains available. The fan control output
+turns on automatically when the temperature reaches 28 C.

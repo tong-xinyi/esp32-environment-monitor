@@ -30,7 +30,8 @@ http://localhost:3000
 ```
 
 Open that address to view the latest reading and recent SQLite history. The
-dashboard checks for new readings every five seconds.
+dashboard checks for new readings every five seconds and draws a simple
+temperature/humidity trend chart from recent saved readings.
 
 SQLite data is saved locally in:
 
@@ -60,7 +61,8 @@ The `data/` folder is ignored by Git so local sensor history is not committed.
   "rawMotion": true,
   "occupied": true,
   "secondsSinceMotion": 3,
-  "acOn": false
+  "acOn": false,
+  "fanOn": false
 }
 ```
 
@@ -71,7 +73,7 @@ With the backend running, save a fake reading:
 ```bash
 curl -X POST http://localhost:3000/api/readings ^
   -H "Content-Type: application/json" ^
-  -d "{\"temperature\":27.5,\"humidity\":60.2,\"light\":120.5,\"rawMotion\":true,\"occupied\":true,\"secondsSinceMotion\":3,\"acOn\":false}"
+  -d "{\"temperature\":27.5,\"humidity\":60.2,\"light\":120.5,\"rawMotion\":true,\"occupied\":true,\"secondsSinceMotion\":3,\"acOn\":false,\"fanOn\":false}"
 ```
 
 Then read the latest saved value:

@@ -37,6 +37,7 @@ function parseReading(body) {
   const rawMotion = toBoolean(body.rawMotion);
   const occupied = toBoolean(body.occupied);
   const acOn = toBoolean(body.acOn);
+  const fanOn = body.fanOn === undefined ? false : toBoolean(body.fanOn);
 
   if (
     temperature === null ||
@@ -45,7 +46,8 @@ function parseReading(body) {
     secondsSinceMotion === null ||
     rawMotion === null ||
     occupied === null ||
-    acOn === null
+    acOn === null ||
+    fanOn === null
   ) {
     return null;
   }
@@ -57,7 +59,8 @@ function parseReading(body) {
     rawMotion,
     occupied,
     secondsSinceMotion: Math.max(0, Math.round(secondsSinceMotion)),
-    acOn
+    acOn,
+    fanOn
   };
 }
 
@@ -171,6 +174,24 @@ function renderHomePage() {
       margin-left: 4px;
     }
 
+    .chart-panel {
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+    }
+
+    #trendChart {
+      display: block;
+      width: 100%;
+      height: 260px;
+      background: white;
+    }
+
+    .chart-line-temp { stroke: #b91c1c; }
+    .chart-line-humidity { stroke: #2563eb; }
+    .chart-grid { stroke: #e5e7eb; }
+    .chart-text { fill: #4b5563; font-size: 12px; }
+    .chart-empty { fill: #6b7280; font-size: 14px; }
+
     .panel { overflow: hidden; }
 
     .panel-header {
@@ -271,6 +292,18 @@ function renderHomePage() {
         <span class="label">Simulated AC</span>
         <span id="acOn" class="value">--</span>
       </div>
+      <div class="card">
+        <span class="label">Fan</span>
+        <span id="fanOn" class="value">--</span>
+      </div>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="panel-header">
+        <h2>Temperature and Humidity Trend</h2>
+        <span class="updated-at">Recent saved readings</span>
+      </div>
+      <svg id="trendChart" viewBox="0 0 720 260" role="img" aria-label="Temperature and humidity trend chart"></svg>
     </section>
 
     <section class="panel">
@@ -308,8 +341,63 @@ function renderHomePage() {
       document.getElementById("light").textContent = formatNumber(reading.light, 1);
       document.getElementById("occupied").textContent = formatBoolean(reading.occupied, "Occupied", "Empty");
       document.getElementById("acOn").textContent = formatBoolean(reading.acOn, "ON", "OFF");
+      document.getElementById("fanOn").textContent = formatBoolean(reading.fanOn, "ON", "OFF");
     }
 
+    function renderTrendChart(readings) {
+      const svg = document.getElementById("trendChart");
+      const recent = readings.slice().reverse();
+      const width = 720;
+      const height = 260;
+      const padding = { top: 24, right: 22, bottom: 34, left: 46 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+
+      if (recent.length < 2) {
+        svg.innerHTML = '<text class="chart-empty" x="46" y="132">Need at least two saved readings to draw a trend.</text>';
+        return;
+      }
+
+      const temperatures = recent.map((reading) => Number(reading.temperature));
+      const humidities = recent.map((reading) => Number(reading.humidity));
+      const allValues = temperatures.concat(humidities);
+      const minValue = Math.floor(Math.min.apply(null, allValues) - 2);
+      const maxValue = Math.ceil(Math.max.apply(null, allValues) + 2);
+      const range = Math.max(1, maxValue - minValue);
+
+      function xFor(index) {
+        return padding.left + (index / Math.max(1, recent.length - 1)) * plotWidth;
+      }
+
+      function yFor(value) {
+        return padding.top + ((maxValue - value) / range) * plotHeight;
+      }
+
+      function pointsFor(values) {
+        return values.map((value, index) => xFor(index).toFixed(1) + "," + yFor(value).toFixed(1)).join(" ");
+      }
+
+      let grid = "";
+      for (let index = 0; index <= 4; index += 1) {
+        const value = minValue + (range / 4) * index;
+        const y = yFor(value);
+        grid += '<line class="chart-grid" x1="' + padding.left + '" y1="' + y + '" x2="' + (width - padding.right) + '" y2="' + y + '" />';
+        grid += '<text class="chart-text" x="8" y="' + (y + 4) + '">' + value.toFixed(0) + '</text>';
+      }
+
+      const firstTime = formatDateTime(recent[0].createdAt);
+      const lastTime = formatDateTime(recent[recent.length - 1].createdAt);
+
+      svg.innerHTML = grid +
+        '<polyline class="chart-line-temp" points="' + pointsFor(temperatures) + '" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />' +
+        '<polyline class="chart-line-humidity" points="' + pointsFor(humidities) + '" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />' +
+        '<text class="chart-text" x="' + padding.left + '" y="244">' + firstTime + '</text>' +
+        '<text class="chart-text" x="520" y="244">' + lastTime + '</text>' +
+        '<text class="chart-text" x="540" y="24">Temp C</text>' +
+        '<line class="chart-line-temp" x1="590" y1="20" x2="630" y2="20" stroke-width="3" />' +
+        '<text class="chart-text" x="540" y="44">Humidity %</text>' +
+        '<line class="chart-line-humidity" x1="610" y1="40" x2="650" y2="40" stroke-width="3" />';
+    }
     function renderTable(readings) {
       const tableWrap = document.getElementById("tableWrap");
 
@@ -329,6 +417,7 @@ function renderHomePage() {
         rows += "<td>" + formatBoolean(reading.rawMotion, "Motion", "None") + "</td>";
         rows += "<td>" + formatBoolean(reading.occupied, "Occupied", "Empty") + "</td>";
         rows += "<td class=\\"" + (reading.acOn ? "status-ok" : "status-off") + "\\">" + formatBoolean(reading.acOn, "ON", "OFF") + "</td>";
+        rows += "<td class=\\"" + (reading.fanOn ? "status-ok" : "status-off") + "\\">" + formatBoolean(reading.fanOn, "ON", "OFF") + "</td>";
         rows += "</tr>";
       });
 
@@ -343,6 +432,7 @@ function renderHomePage() {
             "<th>Motion</th>" +
             "<th>Room</th>" +
             "<th>AC</th>" +
+            "<th>Fan</th>" +
           "</tr>" +
         "</thead>" +
         "<tbody>" + rows + "</tbody>" +
@@ -356,6 +446,7 @@ function renderHomePage() {
 
         renderLatest(readings[0]);
         renderTable(readings);
+        renderTrendChart(readings);
         document.getElementById("updatedAt").textContent = "Updated " + new Date().toLocaleTimeString();
       } catch (error) {
         document.getElementById("updatedAt").textContent = "Could not load readings";
