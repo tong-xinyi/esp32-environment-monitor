@@ -33,6 +33,17 @@
 | LED positive side | GPIO 26 through resistor |
 | LED negative side | GND |
 
+## Low-Voltage Fan Control
+
+| Component | ESP32 Pin |
+|---|---|
+| Fan control signal | GPIO 27 |
+| Fan power | External 5V supply or suitable driver board |
+| Fan ground | Common ground with ESP32 |
+
+Do not power a fan directly from an ESP32 GPIO pin. Use a small transistor,
+MOSFET driver, or motor driver module that matches the fan you bought.
+
 This LED represents the simulated AC state only. It is safe low-voltage status
 output for the dashboard demo, not real air-conditioner or mains-power
 control.

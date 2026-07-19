@@ -28,6 +28,7 @@ The project currently targets:
 - BH1750 light sensor via I2C.
 - AM312 PIR motion sensor.
 - LEDs for status indicators or traffic-light style control when needed.
+- Low-voltage fan controlled through a suitable driver, not directly by GPIO.
 
 Keep existing hardware pin assignments unless the user explicitly asks to
 change them.
@@ -35,6 +36,8 @@ change them.
 The simulated AC feature must remain low-voltage and LED-based unless the user
 explicitly asks for something else. Do not add real high-voltage AC control,
 relay wiring, or dangerous hardware instructions.
+- Do not instruct the user to power a fan directly from an ESP32 GPIO pin.
+  Use a transistor, MOSFET driver, or motor driver for real fan hardware.
 
 ## Important Rules
 
@@ -85,6 +88,8 @@ The `backend/` folder is for the full-stack roadmap:
 - Accept readings from the ESP32 or manual test clients.
 - Save readings to a local SQLite database.
 - Expose simple JSON routes for latest and historical readings.
+- Show recent readings and simple temperature/humidity trend charts without
+  adding heavy frontend dependencies.
 - Keep local database files out of Git.
 - ESP32 backend posting should stay optional and beginner-readable. Keep it
   disabled by default with a boolean such as `backendPostingEnabled`, and use

@@ -17,11 +17,14 @@ const unsigned long backendPostInterval = 10000;
 const float acTemperatureThreshold = 28.0;
 bool acOn = false;
 bool acManualOverride = false;
+const float fanTemperatureThreshold = 28.0;
+bool fanOn = false;
 
 #define DHTPIN 4
 #define DHTTYPE DHT22
 #define PIR_PIN 18
 #define AC_LED_PIN 26
+#define FAN_CONTROL_PIN 27
 
 DHT dht(DHTPIN, DHTTYPE);
 BH1750 lightMeter;
@@ -64,6 +67,11 @@ void updateAcState(float temperature, bool occupied) {
   writeAcOutput();
 }
 
+void updateFanState(float temperature) {
+  fanOn = temperature >= fanTemperatureThreshold;
+  digitalWrite(FAN_CONTROL_PIN, fanOn ? HIGH : LOW);
+}
+
 String buildJsonResponse(const SensorReadings& readings, bool occupied, bool acOn) {
   String json = "{";
   json += "\"temperature\":";
@@ -86,6 +94,9 @@ String buildJsonResponse(const SensorReadings& readings, bool occupied, bool acO
   json += ",";
   json += "\"acOn\":";
   json += acOn ? "true" : "false";
+  json += ",";
+  json += "\"fanOn\":";
+  json += fanOn ? "true" : "false";
   json += "}";
 
   return json;
@@ -111,6 +122,7 @@ void postReadingToBackend() {
   SensorReadings readings = readSensors();
   bool occupied = updateOccupancy(readings.rawMotion);
   updateAcState(readings.temperature, occupied);
+  updateFanState(readings.temperature);
   String json = buildJsonResponse(readings, occupied, acOn);
 
   sendReadingToBackend(json);
@@ -265,6 +277,12 @@ void handleRoot() {
     </section>
 
     <section class="card ac-card">
+      <span class="label">Fan Status</span>
+      <span id="fanStatus" class="status">--</span>
+      <p class="subtitle">Fan turns on automatically at 28 &deg;C or higher.</p>
+    </section>
+
+    <section class="card ac-card">
       <span class="label">Simulated AC Status</span>
       <span id="acStatus" class="status">--</span>
       <div class="controls">
@@ -288,6 +306,7 @@ void handleRoot() {
         document.getElementById('rawMotion').textContent = data.rawMotion ? 'Detected' : 'None';
         document.getElementById('occupied').textContent = data.occupied ? 'Occupied' : 'Empty';
         document.getElementById('acStatus').textContent = data.acOn ? 'ON' : 'OFF';
+        document.getElementById('fanStatus').textContent = data.fanOn ? 'ON' : 'OFF';
         document.getElementById('secondsSinceMotion').textContent = data.secondsSinceMotion;
       } catch (error) {
         console.log('Failed to fetch sensor data:', error);
@@ -326,6 +345,7 @@ void handleData() {
   SensorReadings readings = readSensors();
   bool occupied = updateOccupancy(readings.rawMotion);
   updateAcState(readings.temperature, occupied);
+  updateFanState(readings.temperature);
   String json = buildJsonResponse(readings, occupied, acOn);
 
   server.send(200, "application/json", json);
@@ -358,7 +378,9 @@ void setup() {
 
   pinMode(PIR_PIN, INPUT);
   pinMode(AC_LED_PIN, OUTPUT);
+  pinMode(FAN_CONTROL_PIN, OUTPUT);
   digitalWrite(AC_LED_PIN, LOW);
+  digitalWrite(FAN_CONTROL_PIN, LOW);
 
   dht.begin();
 

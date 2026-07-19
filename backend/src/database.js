@@ -19,9 +19,16 @@ db.exec(`
     occupied INTEGER NOT NULL,
     seconds_since_motion INTEGER NOT NULL,
     ac_on INTEGER NOT NULL,
+    fan_on INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+const columns = db.prepare("PRAGMA table_info(readings);").all().map((column) => column.name);
+
+if (!columns.includes("fan_on")) {
+  db.exec("ALTER TABLE readings ADD COLUMN fan_on INTEGER NOT NULL DEFAULT 0;");
+}
 
 const insertReadingStatement = db.prepare(`
   INSERT INTO readings (
@@ -31,7 +38,8 @@ const insertReadingStatement = db.prepare(`
     raw_motion,
     occupied,
     seconds_since_motion,
-    ac_on
+    ac_on,
+    fan_on
   )
   VALUES (
     @temperature,
@@ -40,7 +48,8 @@ const insertReadingStatement = db.prepare(`
     @rawMotion,
     @occupied,
     @secondsSinceMotion,
-    @acOn
+    @acOn,
+    @fanOn
   );
 `);
 
@@ -54,6 +63,7 @@ const listReadingsStatement = db.prepare(`
     occupied,
     seconds_since_motion AS secondsSinceMotion,
     ac_on AS acOn,
+    fan_on AS fanOn,
     created_at AS createdAt
   FROM readings
   ORDER BY id DESC
@@ -70,6 +80,7 @@ const latestReadingStatement = db.prepare(`
     occupied,
     seconds_since_motion AS secondsSinceMotion,
     ac_on AS acOn,
+    fan_on AS fanOn,
     created_at AS createdAt
   FROM readings
   ORDER BY id DESC
@@ -86,6 +97,7 @@ const readingByIdStatement = db.prepare(`
     occupied,
     seconds_since_motion AS secondsSinceMotion,
     ac_on AS acOn,
+    fan_on AS fanOn,
     created_at AS createdAt
   FROM readings
   WHERE id = ?;
@@ -99,7 +111,8 @@ function toStoredReading(reading) {
     rawMotion: reading.rawMotion ? 1 : 0,
     occupied: reading.occupied ? 1 : 0,
     secondsSinceMotion: reading.secondsSinceMotion,
-    acOn: reading.acOn ? 1 : 0
+    acOn: reading.acOn ? 1 : 0,
+    fanOn: reading.fanOn ? 1 : 0
   };
 }
 
@@ -112,7 +125,8 @@ function toApiReading(row) {
     ...row,
     rawMotion: Boolean(row.rawMotion),
     occupied: Boolean(row.occupied),
-    acOn: Boolean(row.acOn)
+    acOn: Boolean(row.acOn),
+    fanOn: Boolean(row.fanOn)
   };
 }
 
