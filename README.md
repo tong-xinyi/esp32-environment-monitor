@@ -59,7 +59,8 @@ to SQLite and display recent readings with a simple trend chart.
 - AM312 PIR motion sensor
 - BH1750 light sensor
 - LED and resistor
-- Low-voltage fan with a suitable transistor, MOSFET driver, or motor driver
+- QISU QSDCB4010S3.3 fan with its small driver board and an external regulated
+  3.3 V supply
 - Breadboard and jumper wires
 
 ## Pin Assignments
@@ -72,6 +73,10 @@ to SQLite and display recent readings with a simple trend chart.
 | BH1750 SCL | GPIO 22 |
 | Simulated AC LED | GPIO 26 |
 | Fan control signal | GPIO 27 |
+
+For the QSDCB4010S3.3 driver board, connect `VCC` to an external regulated
+3.3 V supply, `GND` to both the supply GND and ESP32 GND, and `GPIO` to GPIO
+27. Do not connect this fan to 5 V or power it from an ESP32 GPIO pin.
 
 More detailed wiring notes are available in [docs/wiring.md](docs/wiring.md).
 
@@ -199,9 +204,8 @@ To enable it for local testing:
 ## Current Limitations
 
 - The AC feature is only simulated with an LED.
-- The fan output is a GPIO control signal only. Do not power a fan directly
-  from an ESP32 pin; use a transistor, MOSFET driver, or motor driver module
-  that matches the fan.
+- The fan module uses an external regulated 3.3 V supply. GPIO 27 is only the
+  control signal, and the fan supply ground must be connected to ESP32 GND.
 - Automatic AC control requires occupancy and a temperature of at least 28 C.
   It turns off after the occupancy hold time expires.
 - Manual ON/OFF overrides the automatic rule until `/ac/auto` is used or the
