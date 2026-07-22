@@ -236,6 +236,89 @@ void handleRoot() {
       background: #2563eb;
     }
 
+    .trend-card {
+      margin-top: 14px;
+    }
+
+    .trend-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .trend-legend {
+      display: flex;
+      gap: 14px;
+      color: #4b5563;
+      font-size: 14px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-line {
+      display: inline-block;
+      width: 24px;
+      height: 3px;
+    }
+
+    .temperature-color {
+      background: #b91c1c;
+    }
+
+    .humidity-color {
+      background: #2563eb;
+    }
+
+    #trendChart {
+      display: block;
+      width: 100%;
+      height: auto;
+      margin-top: 12px;
+    }
+
+    .trend-grid {
+      stroke: #d1d5db;
+      stroke-width: 1;
+    }
+
+    .trend-text {
+      fill: #4b5563;
+      font-size: 12px;
+    }
+
+    .trend-line {
+      fill: none;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .temperature-line {
+      stroke: #b91c1c;
+    }
+
+    .humidity-line {
+      stroke: #2563eb;
+    }
+
+    .temperature-dot {
+      fill: #b91c1c;
+    }
+
+    .humidity-dot {
+      fill: #2563eb;
+    }
+
+    .trend-empty {
+      fill: #6b7280;
+      font-size: 15px;
+    }
+
   </style>
 </head>
 
@@ -276,6 +359,22 @@ void handleRoot() {
       </div>
     </section>
 
+    <section class="card trend-card">
+      <div class="trend-header">
+        <div>
+          <span class="label">Temperature and Humidity Trend</span>
+          <p class="subtitle">Last 20 live readings. History resets when this page is refreshed.</p>
+        </div>
+        <div class="trend-legend" aria-hidden="true">
+          <span class="legend-item"><span class="legend-line temperature-color"></span>Temperature</span>
+          <span class="legend-item"><span class="legend-line humidity-color"></span>Humidity</span>
+        </div>
+      </div>
+      <svg id="trendChart" viewBox="0 0 760 330" role="img" aria-label="Live temperature and humidity trends">
+        <text class="trend-empty" x="52" y="165">Waiting for sensor readings...</text>
+      </svg>
+    </section>
+
     <section class="card ac-card">
       <span class="label">Fan Status</span>
       <span id="fanStatus" class="status">--</span>
@@ -294,6 +393,86 @@ void handleRoot() {
   </main>
 
   <script>
+    const maxTrendPoints = 20;
+    const temperatureHistory = [];
+    const humidityHistory = [];
+
+    function addTrendReading(temperature, humidity) {
+      const temperatureValue = Number(temperature);
+      const humidityValue = Number(humidity);
+
+      if (!Number.isFinite(temperatureValue) || !Number.isFinite(humidityValue)) {
+        return;
+      }
+
+      temperatureHistory.push(temperatureValue);
+      humidityHistory.push(humidityValue);
+
+      if (temperatureHistory.length > maxTrendPoints) {
+        temperatureHistory.shift();
+        humidityHistory.shift();
+      }
+
+      renderTrendChart();
+    }
+
+    function renderTrendSeries(values, label, unit, top, lineClass, dotClass) {
+      const left = 52;
+      const right = 18;
+      const plotWidth = 760 - left - right;
+      const plotHeight = 100;
+      const minimum = Math.floor(Math.min(...values) - 1);
+      const maximum = Math.ceil(Math.max(...values) + 1);
+      const range = Math.max(1, maximum - minimum);
+
+      function xFor(index) {
+        return left + (index / Math.max(1, values.length - 1)) * plotWidth;
+      }
+
+      function yFor(value) {
+        return top + ((maximum - value) / range) * plotHeight;
+      }
+
+      let markup = '<text class="trend-text" x="' + left + '" y="' + (top - 10) + '">' +
+        label + ': ' + values[values.length - 1].toFixed(1) + unit + '</text>';
+
+      for (let index = 0; index <= 2; index += 1) {
+        const value = maximum - (range / 2) * index;
+        const y = top + (plotHeight / 2) * index;
+        markup += '<line class="trend-grid" x1="' + left + '" y1="' + y +
+          '" x2="' + (760 - right) + '" y2="' + y + '" />';
+        markup += '<text class="trend-text" x="8" y="' + (y + 4) + '">' +
+          value.toFixed(0) + unit + '</text>';
+      }
+
+      const points = values.map((value, index) =>
+        xFor(index).toFixed(1) + ',' + yFor(value).toFixed(1)
+      ).join(' ');
+      const latestX = xFor(values.length - 1).toFixed(1);
+      const latestY = yFor(values[values.length - 1]).toFixed(1);
+
+      markup += '<polyline class="trend-line ' + lineClass + '" points="' + points + '" />';
+      markup += '<circle class="' + dotClass + '" cx="' + latestX + '" cy="' + latestY + '" r="4" />';
+
+      return markup;
+    }
+
+    function renderTrendChart() {
+      const chart = document.getElementById('trendChart');
+
+      if (temperatureHistory.length < 2) {
+        chart.innerHTML = '<text class="trend-empty" x="52" y="165">Collecting readings... ' +
+          temperatureHistory.length + ' of 2 needed to draw the first lines.</text>';
+        return;
+      }
+
+      chart.innerHTML =
+        renderTrendSeries(temperatureHistory, 'Temperature', ' C', 36, 'temperature-line', 'temperature-dot') +
+        renderTrendSeries(humidityHistory, 'Humidity', ' %', 190, 'humidity-line', 'humidity-dot') +
+        '<text class="trend-text" x="52" y="322">Oldest</text>' +
+        '<text class="trend-text" x="700" y="322">Newest</text>';
+    }
+
     async function updateData() {
       try {
         const response = await fetch('/data');
@@ -308,6 +487,7 @@ void handleRoot() {
         document.getElementById('acStatus').textContent = data.acOn ? 'ON' : 'OFF';
         document.getElementById('fanStatus').textContent = data.fanOn ? 'ON' : 'OFF';
         document.getElementById('secondsSinceMotion').textContent = data.secondsSinceMotion;
+        addTrendReading(data.temperature, data.humidity);
       } catch (error) {
         console.log('Failed to fetch sensor data:', error);
       }

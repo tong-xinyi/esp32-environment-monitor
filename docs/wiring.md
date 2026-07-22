@@ -45,8 +45,9 @@ three pins on the driver board are labeled `VCC`, `GND`, and `GPIO`.
 | GPIO | ESP32 GPIO 27 control signal |
 
 The external supply GND and ESP32 GND must be connected together. Do not
-connect this 3.3 V fan to 5 V, and do not power it from GPIO 27. GPIO 27 is a
-control signal only. The driver board switches the fan power.
+connect this 3.3 V fan to 5 V, GPIO 27, or the ESP32 `3V3` power pin. GPIO 27
+is a control signal only. The driver board switches the fan power. Using the
+ESP32 `3V3` pin for fan power can make the ESP32 power rail and WiFi unstable.
 
 This LED represents the simulated AC state only. It is safe low-voltage status
 output for the dashboard demo, not real air-conditioner or mains-power
