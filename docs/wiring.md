@@ -33,16 +33,21 @@
 | LED positive side | GPIO 26 through resistor |
 | LED negative side | GND |
 
-## Low-Voltage Fan Control
+## QISU QSDCB4010S3.3 Fan Module
 
-| Component | ESP32 Pin |
+The QSDCB4010S3.3 is a 3.3 V fan connected through a small driver board. The
+three pins on the driver board are labeled `VCC`, `GND`, and `GPIO`.
+
+| Fan module pin | Connection |
 |---|---|
-| Fan control signal | GPIO 27 |
-| Fan power | External 5V supply or suitable driver board |
-| Fan ground | Common ground with ESP32 |
+| VCC | External regulated 3.3 V supply |
+| GND | External supply GND and ESP32 GND |
+| GPIO | ESP32 GPIO 27 control signal |
 
-Do not power a fan directly from an ESP32 GPIO pin. Use a small transistor,
-MOSFET driver, or motor driver module that matches the fan you bought.
+The external supply GND and ESP32 GND must be connected together. Do not
+connect this 3.3 V fan to 5 V, GPIO 27, or the ESP32 `3V3` power pin. GPIO 27
+is a control signal only. The driver board switches the fan power. Using the
+ESP32 `3V3` pin for fan power can make the ESP32 power rail and WiFi unstable.
 
 This LED represents the simulated AC state only. It is safe low-voltage status
 output for the dashboard demo, not real air-conditioner or mains-power

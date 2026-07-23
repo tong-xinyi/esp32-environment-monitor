@@ -17,6 +17,7 @@ hardware.
 - Light intensity monitoring using BH1750
 - Web dashboard hosted on ESP32
 - JavaScript live data update
+- Rolling temperature and humidity trend on the ESP32 dashboard
 - Occupancy-aware simulated AC control at 28 C with manual ON/OFF override
 - Automatic low-voltage fan control output at 28 C
 - Backend dashboard with recent readings and temperature/humidity trend chart
@@ -46,7 +47,9 @@ The ESP32 web server exposes two routes:
 
 The dashboard fetches `/data` every two seconds and updates the page without a
 refresh. The AC buttons call `/ac/on`, `/ac/off`, or `/ac/auto`, then refresh
-the displayed state.
+the displayed state. The browser keeps the latest 20 temperature and humidity
+readings in memory and draws two lightweight SVG trend lines. This history is
+cleared when the dashboard page is refreshed.
 
 The repository also includes a small `backend/` folder for the next
 full-stack step. It provides a Node.js API that can save environment readings
@@ -59,7 +62,8 @@ to SQLite and display recent readings with a simple trend chart.
 - AM312 PIR motion sensor
 - BH1750 light sensor
 - LED and resistor
-- Low-voltage fan with a suitable transistor, MOSFET driver, or motor driver
+- QISU QSDCB4010S3.3 fan with its small driver board and an external regulated
+  3.3 V supply
 - Breadboard and jumper wires
 
 ## Pin Assignments
@@ -72,6 +76,11 @@ to SQLite and display recent readings with a simple trend chart.
 | BH1750 SCL | GPIO 22 |
 | Simulated AC LED | GPIO 26 |
 | Fan control signal | GPIO 27 |
+
+For the QSDCB4010S3.3 driver board, connect `VCC` to an external regulated
+3.3 V supply, `GND` to both the supply GND and ESP32 GND, and `GPIO` to GPIO
+27. Do not connect this fan to 5 V, an ESP32 GPIO pin, or the ESP32 `3V3`
+power pin. Fan startup current can make the ESP32 power rail and WiFi unstable.
 
 More detailed wiring notes are available in [docs/wiring.md](docs/wiring.md).
 
@@ -199,9 +208,10 @@ To enable it for local testing:
 ## Current Limitations
 
 - The AC feature is only simulated with an LED.
-- The fan output is a GPIO control signal only. Do not power a fan directly
-  from an ESP32 pin; use a transistor, MOSFET driver, or motor driver module
-  that matches the fan.
+- The fan module uses an external regulated 3.3 V supply. GPIO 27 is only the
+  control signal, and the fan supply ground must be connected to ESP32 GND.
+- The ESP32 dashboard trend keeps only 20 readings in browser memory and resets
+  when the page is refreshed.
 - Automatic AC control requires occupancy and a temperature of at least 28 C.
   It turns off after the occupancy hold time expires.
 - Manual ON/OFF overrides the automatic rule until `/ac/auto` is used or the
